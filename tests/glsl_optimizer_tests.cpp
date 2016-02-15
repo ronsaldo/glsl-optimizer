@@ -104,9 +104,9 @@ static bool InitializeOpenGL ()
 
 	HGLRC rc = wglCreateContext( dc );
 	wglMakeCurrent( dc, rc );
-	
+
 #elif defined(__APPLE__)
-	
+
 	CGLPixelFormatAttribute attributes[] = {
 		kCGLPFAAccelerated,   // no software rendering
 		(CGLPixelFormatAttribute) 0
@@ -119,7 +119,7 @@ static bool InitializeOpenGL ()
 	};
 	GLint num;
 	CGLPixelFormatObj pix;
-	
+
 	// create legacy context
 	CGLChoosePixelFormat(attributes, &pix, &num);
 	if (pix == NULL)
@@ -129,7 +129,7 @@ static bool InitializeOpenGL ()
 		return false;
 	CGLDestroyPixelFormat(pix);
 	CGLSetCurrentContext(s_GLContext);
-	
+
 	// create core 3.2 context
 	CGLChoosePixelFormat(attributes3, &pix, &num);
 	if (pix == NULL)
@@ -144,13 +144,13 @@ static bool InitializeOpenGL ()
 	// check if we have GLSL
 	const char* extensions = (const char*)glGetString(GL_EXTENSIONS);
 	hasGLSL = extensions != NULL && strstr(extensions, "GL_ARB_shader_objects") && strstr(extensions, "GL_ARB_vertex_shader") && strstr(extensions, "GL_ARB_fragment_shader");
-	
+
 	#if defined(__APPLE__)
 	// using core profile; always has GLSL
 	hasGLSL = true;
 	#endif
-	
-	
+
+
 #ifdef _MSC_VER
 	if (hasGLSL)
 	{
@@ -184,13 +184,13 @@ static void CleanupGL()
 static bool InitializeMetal ()
 {
 	bool hasMetal = false;
-	
+
 #if defined(__APPLE__)
 
 	hasMetal = true; //@TODO: detect metal compiler presence
-	
+
 #endif
-	
+
 	return hasMetal;
 }
 
@@ -198,7 +198,7 @@ static void replace_string (std::string& target, const std::string& search, cons
 {
 	if (search.empty())
 		return;
-	
+
 	std::string::size_type p = startPos;
 	while ((p = target.find (search, p)) != std::string::npos)
 	{
@@ -221,7 +221,7 @@ static bool CheckGLSL (bool vertex, bool gles, const std::string& testName, cons
 	const bool need3 =
 		(source.find("#version 150") != std::string::npos) ||
 		(source.find("#version 300") != std::string::npos);
-	
+
 #	ifdef __APPLE__
 	// Mac core context does not accept any older shader versions, so need to switch to
 	// either legacy context or core one.
@@ -238,8 +238,8 @@ static bool CheckGLSL (bool vertex, bool gles, const std::string& testName, cons
 		s_GL3Active = false;
 	}
 #	endif // ifdef __APPLE__
-	
-	
+
+
 	std::string src;
 	if (gles)
 	{
@@ -279,7 +279,7 @@ static bool CheckGLSL (bool vertex, bool gles, const std::string& testName, cons
 		replace_string (src, "precision ", "// precision ", 0);
 		replace_string (src, "#version 300 es", "", 0);
 	}
-	
+
 	// can't check FB fetch on PC
 	if (src.find("#extension GL_EXT_shader_framebuffer_fetch") != std::string::npos)
 		return true;
@@ -290,14 +290,14 @@ static bool CheckGLSL (bool vertex, bool gles, const std::string& testName, cons
 	}
 	const char* sourcePtr = src.c_str();
 
-	
+
 	GLuint shader = glCreateShader (vertex ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER);
 	glShaderSource (shader, 1, &sourcePtr, NULL);
 	glCompileShader (shader);
 	GLint status;
-	
+
 	glGetShaderiv (shader, GL_COMPILE_STATUS, &status);
-	
+
 	bool res = true;
 	if (status != GL_TRUE)
 	{
@@ -318,11 +318,12 @@ static bool CheckMetal (bool vertex, bool gles, const std::string& testName, con
 #if !GOT_GFX
 	return true; // just assume it's ok
 #endif
-	
+
+#	ifdef __APPLE__
 	FILE* f = fopen ("metalTemp.metal", "wb");
 	fwrite (source.c_str(), source.size(), 1, f);
 	fclose (f);
-	
+
 	int res = system("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/usr/bin/metal metalTemp.metal -o metalTemp.o -std=ios-metal1.0 -Wno-parentheses-equality");
 	if (res != 0)
 	{
@@ -330,6 +331,9 @@ static bool CheckMetal (bool vertex, bool gles, const std::string& testName, con
 		return false;
 	}
 	return true;
+#else
+	return false;
+#endif
 }
 
 
@@ -381,9 +385,9 @@ static StringVector GetFiles (const std::string& folder, const std::string& ends
 	} while (FindNextFileA (hFind, &FindFileData));
 
 	FindClose (hFind);
-	
+
 	#else
-	
+
 	DIR *dirp;
 	struct dirent *dp;
 
@@ -400,7 +404,7 @@ static StringVector GetFiles (const std::string& folder, const std::string& ends
 		res.push_back (fname);
 	}
 	closedir(dirp);
-	
+
 	#endif
 
 	return res;
@@ -440,7 +444,7 @@ static void MassageVertexForGLES (std::string& s)
 		pre += "#define gl_MultiTexCoord1 _glesMultiTexCoord1\nattribute highp vec4 _glesMultiTexCoord1;\n";
 		pre += "#define gl_Color _glesColor\nattribute lowp vec4 _glesColor;\n";
 	}
-	
+
 	s.insert (insertPoint, pre);
 }
 
@@ -513,7 +517,7 @@ static bool TestFile (glslopt_ctx* ctx, bool vertex,
 		glslopt_shader_get_stats (shader, &statsAlu, &statsTex, &statsFlow);
 		sprintf(buffer, "\n// stats: %i alu %i tex %i flow\n", statsAlu, statsTex, statsFlow);
 		textOpt += buffer;
-		
+
 		// append inputs
 		const int inputCount = glslopt_shader_get_input_count (shader);
 		if (inputCount > 0)
@@ -581,7 +585,7 @@ static bool TestFile (glslopt_ctx* ctx, bool vertex,
 
 		if (res && doCheckMetal && !CheckMetal (vertex, gles, testName, "metal", textOpt.c_str()))
 			res = false;
-		
+
 		if (textOpt != outputOpt)
 		{
 			// write output
@@ -688,7 +692,7 @@ int main (int argc, const char** argv)
 		printf ("\n**** %i tests (%.2fsec), %i !!!FAILED!!!\n", (int)tests, timeDelta, (int)errors);
 	else
 		printf ("\n**** %i tests (%.2fsec) succeeded\n", (int)tests, timeDelta);
-	
+
 	// 3.25s
 	// with builtin call linking, 3.84s
 
